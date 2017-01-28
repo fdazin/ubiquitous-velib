@@ -66,10 +66,22 @@ anytime(1352068320)
 # json_data3 <- read_json(path=json_file3, simplifyVector = TRUE)
 # head(json_data3)
 
-json_file <- "data_all_Paris.jjson_2017-01-01-1483248351.gz"
-dat <- fromJSON(sprintf("[%s]", paste(readLines(json_file), collapse=",")))
-dim(dat)
+# développements à reprendre à partir d'ici :
 
+# imports des modules
+library(jsonlite)
+library(anytime)
+
+#chargement des fichiers
+json_file <- "data/data_all_Paris/data_all_Paris.jjson_2017-01-01-1483248351.gz" 
+# Placer les données dans un répertoire data/data_all_Paris/ à côté du script
+dat <- fromJSON(sprintf("[%s]", paste(readLines(json_file), collapse=",")))
+length(dat)
 # On obtient une liste contenant l'ensemble des df des données collectées sur 1 mois, le pas temporel est de 20 minutes.
 
-
+# Optimum pour itérer sur la liste : lapply à privilégier sur une boucle for ...
+avg_bike_stands <- unlist(lapply(dat, function(x) mean(x$bike_stands)))
+time <- unlist(lapply(dat, function(x) anytime(x$download_date)))
+hist(avg_bike_stands)
+unique(avg_bike_stands)
+plot(time, avg_bike_stands)

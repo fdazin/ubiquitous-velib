@@ -3,6 +3,7 @@ library(anytime)
 library(ggplot2)
 
 #chargement des fichiers
+setwd("~/Documents/dev/Cepe/ubiquitous-velib")
 json_file <- "data/data_all_Paris/data_all_Paris.jjson_2017-01-01-1483248351.gz" 
 # Placer les données dans un répertoire data/data_all_Paris/ à côté du script
 dat <- fromJSON(sprintf("[%s]", paste(readLines(json_file), collapse=",")))
