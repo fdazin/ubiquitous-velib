@@ -10,7 +10,7 @@ dat <- fromJSON(sprintf("[%s]", paste(readLines(json_file), collapse=",")))
 length(dat)
 # On obtient une liste contenant l'ensemble des df des données collectées sur 1 mois, le pas temporel est de 20 minutes.
 dat_full <- dat
-dat <- dat_full[1:10]
+dat <- dat_full[1:72] # Une journée de données
 
 
 # Optimum pour itérer sur la liste : lapply à privilégier sur une boucle for ...
@@ -20,11 +20,13 @@ time <-(lapply(lapply(dat, function(x) mean(x$download_date)), function(x) anyti
 
 ##hist(avg_bike_stands)
 #unique(avg_bike_stands)
-plot(time, avg_bike_stands)
+#plot(time, avg_bike_stands)
+
+bike_stands_df <- data.frame(cbind(time, avg_bike_stands))
+bike_stands_df$time<-as.POSIXct(bike_stands_df$time, origin="1970-01-01", tz="UTC")
+plot(bike_stands_df$time, bike_stands_df$avg_bike_stands)
 
 # So far, so good, mais après ...
 
-bike_stands_df <- data.frame(cbind(time, avg_bike_stands))
-#bike_stands_df$Date_temps <- lapply(bike_stands_df$time, function(x) anytime(x)) # Ne marche pas,à debugger
 #ggplot(bike_stands_df) %>% geom_point(aes(x=~time, y=~avg_bikes_stands)) # Erreur : ggplot2 doesn't know how to deal with data of class uneval
 
