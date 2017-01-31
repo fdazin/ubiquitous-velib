@@ -65,10 +65,28 @@ raw_data$lastupdt_datetemps<-as.POSIXct(raw_data$last_update/1000, origin="1970-
 
 ###############################################################################
 # Comment explorer les données : station 1013, évolution de la disponibilité
-filter(raw_data, number == 1013) %>% select(download_datetemps, available_bikes) %>% plot(type = 'l', lty = 1)
+data <- tbl_df(raw_data)
+filter(data, number == 1013) %>% select(download_datetemps, available_bikes) %>% plot(type = 'l', lty = 1)
 
 
 ###############################################################################
-# WiP, on va chercher à identifier les colonnes station_emplacement_velo_non_pleines
-identifier_vides_continus <- function(x){ tmp<-cumsum(x);tmp-cummax((!x)*tmp)} 
-# on fera une identifiation des valeurs crées égales à 1, pou faire un cumsum ensuite
+# Exploration des données par durée d'indisponibilité compléte : aucun Velib disponible
+
+identifier_vides_continus <- function(x){ tmp<-cumsum(!x);tmp-cummax(x*tmp)} 
+data <- tbl_df(raw_data)
+data <- filter(data, number == 1013) 
+
+data$unempty_station <- 1
+data$unempty_station[data$available_bikes == 0]<-0
+
+data$empty_station <- 0
+data$empty_station[data$available_bikes == 0]<-1
+
+data$vides_continus = cumsum(!data$unempty_station)-cummax(data$unempty_station *cumsum(!data$unempty_station ))
+
+data$vides_continus_starts <- 0
+data$vides_continus_starts[data$vides_continus==1] <- 1
+data$no_evenement_vides_continus <- cumsum(data$vides_continus_starts)
+
+durée <- 1/3 * filter(data, empty_station == 1) %>% select(no_evenement_vides_continus) %>% table %>% t()
+hist(durée, main = 'Répartition des durées (en h) des périodes où la station 1013 est vide de tout Velib')
