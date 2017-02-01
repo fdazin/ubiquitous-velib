@@ -5,6 +5,8 @@ library(DBI)
 library(dtplyr)
 library(data.table)
 library(magrittr)
+library(treemap)
+library(lubridate)
 
 # TODO : initialiser la base sqlite si elle est absente, et travailler en append si des données sont déja présentes.
 #         Prévoir de nettoyer la base pour ne garder que les lignes uniques.
@@ -90,3 +92,28 @@ data$no_evenement_vides_continus <- cumsum(data$vides_continus_starts)
 
 durée <- 1/3 * filter(data, empty_station == 1) %>% select(no_evenement_vides_continus) %>% table %>% t()
 hist(durée, main = 'Répartition des durées (en h) des périodes où la station 1013 est vide de tout Velib')
+
+###############################################################################
+# Visualisation globale des indisponibilités sur un mois via des treemaps
+
+setwd("~/Documents/dev/Cepe/ubiquitous-velib")
+SQLite_db <- "SQLiteData/Test.sqlite"
+tbl_name <- "raw_data" 
+raw_data <- data_fromSQLITE_to_df(SQLite_db, tbl_name)
+raw_data$download_datetemps<-as.POSIXct(raw_data$download_date, origin="1970-01-01", tz="UTC")
+raw_data$lastupdt_datetemps<-as.POSIXct(raw_data$last_update/1000, origin="1970-01-01", tz="UTC")
+data <- tbl_df(raw_data)
+
+data_treemap = filter(data, available_bikes == 0)
+data_treemap$Nombre_indispo_totales = 1
+data_treemap$Nom_Station = as.character(data_treemap$number)
+#Enrichissement du df par les dates : jour de la semaine, etc.
+data_treemap$date=ymd_hms(data_treemap$download_datetemps)
+data_treemap$day=wday(data_treemap$download_datetemps)
+
+#treemap(data_treemap, index = c("Nom_Station"), vSize ='Nombre_indispo_totales', type='value', title = "Nombre d'indisponibilités totales cumulées par station")
+# Treemap sera réellement intéressant lorsque l'on aura rattaché les stations à des regroupements géographiques
+# possibilité de visualisation en D3.js : cf http://www.buildingwidgets.com/blog/2015/7/22/week-29-d3treer-v2
+
+treemap(data_treemap, index = c("day","Nom_Station"), vSize ='Nombre_indispo_totales', type='value', title = "Nombre d'indisponibilités totales cumulées par station en fonction du jour")
+
