@@ -3,6 +3,7 @@ library(sqldf)
 library(plyr)
 library(DBI)
 library(dtplyr)
+library(dplyr)
 library(data.table)
 library(magrittr)
 library(treemap)
@@ -59,7 +60,7 @@ data_fromJSON_to_SQLite(json_file,SQLite_db)
 ###############################################################################
 # Comment charger les données traitées en df, beaucoup plus rapide !
 SQLite_db <- "SQLiteData/Test.sqlite"
-tbl_name <- "raw_data" 
+tbl_name <- "raw_data"
 raw_data <- data_fromSQLITE_to_df(SQLite_db, tbl_name)
 raw_data$download_datetemps<-as.POSIXct(raw_data$download_date, origin="1970-01-01", tz="UTC")
 raw_data$lastupdt_datetemps<-as.POSIXct(raw_data$last_update/1000, origin="1970-01-01", tz="UTC")
@@ -84,7 +85,7 @@ data$unempty_station[data$available_bikes == 0]<-0
 data$empty_station <- 0
 data$empty_station[data$available_bikes == 0]<-1
 
-data$vides_continus = cumsum(!data$unempty_station)-cummax(data$unempty_station *cumsum(!data$unempty_station ))
+data$vides_continus = cumsum(!data$unempty_station)-cummax(data$unempty_station*cumsum(!data$unempty_station ))
 
 data$vides_continus_starts <- 0
 data$vides_continus_starts[data$vides_continus==1] <- 1
@@ -109,11 +110,14 @@ data_treemap$Nombre_indispo_totales = 1
 data_treemap$Nom_Station = as.character(data_treemap$number)
 #Enrichissement du df par les dates : jour de la semaine, etc.
 data_treemap$date=ymd_hms(data_treemap$download_datetemps)
-data_treemap$day=wday(data_treemap$download_datetemps)
+data_treemap$day=weekdays(data_treemap$download_datetemps)
 
-#treemap(data_treemap, index = c("Nom_Station"), vSize ='Nombre_indispo_totales', type='value', title = "Nombre d'indisponibilités totales cumulées par station")
-# Treemap sera réellement intéressant lorsque l'on aura rattaché les stations à des regroupements géographiques
-# possibilité de visualisation en D3.js : cf http://www.buildingwidgets.com/blog/2015/7/22/week-29-d3treer-v2
+
+# NPO possibilité de visualisation en D3.js : cf http://www.buildingwidgets.com/blog/2015/7/22/week-29-d3treer-v2
 
 treemap(data_treemap, index = c("day","Nom_Station"), vSize ='Nombre_indispo_totales', type='value', title = "Nombre d'indisponibilités totales cumulées par station en fonction du jour")
+# On pourrait aussi pondérer par le nombre de vélos manquants en employant en vsize bike_stands, ou colorer en fonction de bikes_stands
+
+data_treemap <- merge(data_treemap, ref_number_cp, by = 'number')
+treemap(data_treemap, index = c("code_postal","Nom_Station"), vColor = 'bike_stands', vSize ='Nombre_indispo_totales', type='value', title = "Nombre d'indisponibilités totales cumulées par code postal et par station")
 
