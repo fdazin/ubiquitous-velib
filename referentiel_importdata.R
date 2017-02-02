@@ -34,3 +34,7 @@ dbWriteTable(con, name="ref_data", value = dat_full , row.names = FALSE)
 ###############################################################################
 tbl_name <- "ref_data"
 referentiel <- data_fromSQLITE_to_df(SQLite_db, tbl_name)
+
+###############################################################################
+ref_number_cp <- data.frame(referentiel$number, referentiel$cp)
+colnames(ref_number_cp) <- c("number","code_postal")
