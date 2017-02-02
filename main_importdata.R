@@ -8,6 +8,7 @@ library(data.table)
 library(magrittr)
 library(treemap)
 library(lubridate)
+library(ggplot2)
 
 # TODO : initialiser la base sqlite si elle est absente, et travailler en append si des données sont déja présentes.
 #         Prévoir de nettoyer la base pour ne garder que les lignes uniques.
@@ -121,3 +122,50 @@ treemap(data_treemap, index = c("day","Nom_Station"), vSize ='Nombre_indispo_tot
 data_treemap <- merge(data_treemap, ref_number_cp, by = 'number')
 treemap(data_treemap, index = c("code_postal","Nom_Station"), vColor = 'bike_stands', vSize ='Nombre_indispo_totales', type='value', title = "Nombre d'indisponibilités totales cumulées par code postal et par station")
 
+###############################################################################
+# Exploration globale des indisponibilités sur un mois enrichie avec la durée d'indispo
+
+data <- tbl_df(raw_data)
+
+#On ne travaille que sur les stations avec status OPEN
+data <- data[which(data$status == 'OPEN'),]
+
+data$unempty_station <- 1
+data$unempty_station[data$available_bikes == 0]<-0
+
+data$empty_station <- 0
+data$empty_station[data$available_bikes == 0]<-1
+
+data <- arrange(data, number, last_update)
+
+data <- ddply(data,.(number),transform,vides_continus = cumsum(!unempty_station)-cummax(unempty_station*cumsum(!unempty_station )))
+
+data$vides_continus_starts <- 0
+data$vides_continus_starts[data$vides_continus==1] <- 1
+data <- ddply(data,.(number),transform,no_evenement_vides_continus = cumsum(vides_continus_starts) +100000*number)
+
+#### On ne travaille que sur le sous element contenant des indisponibilités totales
+data_tmp <- data[which(data$empty_station == 1),]
+
+a <- rle(sort(data_tmp$no_evenement_vides_continus))
+b <- data.frame(no_evenement_vides_continus=a$values, durée_indispo_totale=a$lengths*20) # n est la durée en minutes de l'indispo totale associée à l'indispo evenement_num
+hist(b$durée_indispo_totale)
+
+
+data_tmp <- data_tmp[c("number", 'download_date','no_evenement_vides_continus')][!duplicated(data_tmp$'no_evenement_vides_continus'),]
+
+data_ggplot <- merge(data_tmp, ref_number_cp, by = 'number')
+data_ggplot <- merge (b, data_ggplot)
+data_ggplot$download_datetemps<-as.POSIXct(data_ggplot$download_date, origin="1970-01-01", tz="UTC")
+data_ggplot$date=ymd_hms(data_ggplot$download_datetemps)
+data_ggplot$day=weekdays(data_ggplot$download_datetemps)
+
+data_ggplot$CP <- as.character(data_ggplot$code_postal)
+
+#### Let's GGplot !
+
+ggplot(data_ggplot, aes(durée_indispo_totale , colour = code_postal)) +
+  geom_freqpoly(binwidth = 60)
+
+ggplot(data_ggplot, aes(durée_indispo_totale , colour = day)) +
+  geom_freqpoly(binwidth = 60)
