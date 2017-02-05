@@ -1,0 +1,74 @@
+
+-----------------------------------------------------------------------
+-- Récupérer le fichier open data des disponibilités en "temps réel"
+-----------------------------------------------------------------------
+
+-- Récupération du fichier des disponibilités 
+
+-- Commande "wget"
+-- https://memo-linux.com/memo-sur-la-commande-wget/
+
+wget http://opendata.paris.fr/explore/dataset/stations-velib-disponibilites-en-temps-reel/download?format=json
+
+-- On change le nom avec un horodatage
+-- Commande "date"
+-- http://techno.firenode.net/article.sh?id=d2016080408105995480
+-- Rem : on ne peut pas utiliser de '/' dans les noms de fichier car c'est interprété comme un sous dossier, alors j'utilise des '-' pour la date
+-- Attention aux anti quotes "`"
+
+wget -O VelibOpenData_`date +%d-%m-%y_%T`.json http://opendata.paris.fr/explore/dataset/stations-velib-disponibilites-en-temps-reel/download?format=json
+
+-- On met la commande dans un fichier script
+
+echo 'wget -O VelibOpenData_`date +%d-%m-%y_%T`.json http://opendata.paris.fr/explore/dataset/stations-velib-disponibilites-en-temps-reel/download?format=json' >> 
+
+chargeDisposVelib.sh
+
+-- On change les autorisations pour pouvoir l'exécuter pour tous le monde
+-- http://dev.petitchevalroux.net/linux/rendre-script-executable-linux.262.html
+
+chmod ugo+x chargeDisposVelib.sh
+
+-- On l'exécute comme ça
+
+./chargeDisposVelib.sh
+ou
+sh chargeDisposVelib.sh
+sh /home/fdazin/velib_dispo/chargeDisposVelib.sh
+
+-----------------------------------------------------------------------
+-- Automatiser le chargement toutes les 20 minutes avec la crontab
+-----------------------------------------------------------------------
+-- La Crontab
+-- http://www.generation-linux.fr/index.php?post/2009/02/11/Cours-Linux-%3A-Automatisation-de-taches-avec-Cron
+
+crontab -e
+
+-- Exécute le script de chargement toutes les 20 minutes
+-- On garde uniquement le dernier log
+-- Si on voulait garder tous les log, on changerait le ".sh > /ho" en ".sh >> /ho"
+
+#m h dom mon dow user  command
+*/20 * * * * /home/fdazin/velib_dispo/chargeDisposVelib.sh > /home/fdazin/velib_dispo/chargeDisposVelib.log 2>&1
+#
+
+-----------------------------------------------------------------------
+-- Automatiser avec Oozie
+-----------------------------------------------------------------------
+-- Je n'y arrive pas avec Oozie, alors 
+
+-- Essai de copie direct
+
+hadoop fs -put -f /home/fdazin/velib_dispo/chargeDisposVelib.log ./Public
+
+hadoop fs -put -f /home/fdazin/velib_dispo/* ./Public
+
+
+
+
+
+
+
+
+
+
