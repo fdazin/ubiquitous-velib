@@ -13,14 +13,18 @@ wget http://opendata.paris.fr/explore/dataset/stations-velib-disponibilites-en-t
 -- On change le nom avec un horodatage
 -- Commande "date"
 -- http://techno.firenode.net/article.sh?id=d2016080408105995480
+
 -- Rem : on ne peut pas utiliser de '/' dans les noms de fichier car c'est interprété comme un sous dossier, alors j'utilise des '-' pour la date
 -- Attention aux anti quotes "`"
+-- Pour la copie sur le cluster Hadoop, il ne peut pas y avoir de ':' dans le nom de fichier, alors pour l'heure ce sera des '-'
 
 wget -O VelibOpenData_`date +%d-%m-%y_%T`.json http://opendata.paris.fr/explore/dataset/stations-velib-disponibilites-en-temps-reel/download?format=json
 
+wget -O VelibOpenData_`date +%d-%m-%y_%H-%M-%S`.json http://opendata.paris.fr/explore/dataset/stations-velib-disponibilites-en-temps-reel/download?format=json
+
 -- On met la commande dans un fichier script
 
-echo 'wget -O VelibOpenData_`date +%d-%m-%y_%T`.json http://opendata.paris.fr/explore/dataset/stations-velib-disponibilites-en-temps-reel/download?format=json' >> 
+echo 'wget -O VelibOpenData_`date +%d-%m-%y_%H-%M-%S`.json http://opendata.paris.fr/explore/dataset/stations-velib-disponibilites-en-temps-reel/download?format=json' >> 
 
 chargeDisposVelib.sh
 
@@ -57,15 +61,27 @@ crontab -e
 -----------------------------------------------------------------------
 -- Je n'y arrive pas avec Oozie, alors 
 
+-----------------------------------------------------------------------
+-- En shell
+-----------------------------------------------------------------------
 -- Essai de copie direct
 
-hadoop fs -put -f /home/fdazin/velib_dispo/chargeDisposVelib.log ./Public
+hadoop fs -put -f /home/fdazin/velib_dispo/VelibOpenData_05-02-17_21:54:45.json ./Public
 
-hadoop fs -put -f /home/fdazin/velib_dispo/* ./Public
+-- Il y a un problème
+/user/fdazin/Public/velib_dispo/VelibOpenData_05-02-17_18:47:10.json is not a valid DFS filename.
 
+--> c'est à cause des ':'
+mv VelibOpenData_05-02-17_21:54:45.json VelibOpenData_05-02-17_21-54-45.json
+hadoop fs -put -f /home/fdazin/velib_dispo/VelibOpenData_05-02-17_21-54-45.json ./Public/input
 
+--> on modifie dans le wget au début
 
+-- Le nouveau fichier "chargeDisposVelib.sh" exécuté par la crontab
 
+var_date=`date +%y-%m-%d_%H-%M-%S`
+wget -O /home/fdazin/velib_dispo/VelibOpenData_${var_date}.json http://opendata.paris.fr/explore/dataset/stations-velib-disponibilites-en-temps-reel/download?format=json
+hadoop fs -put /home/fdazin/velib_dispo/VelibOpenData_${var_date}.json ./Public/input
 
 
 
