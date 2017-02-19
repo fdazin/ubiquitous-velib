@@ -1,0 +1,162 @@
+---
+title: "IRIS enfin"
+output: html_notebook
+---
+fichiers iris
+ Page : http://professionnels.ign.fr/contoursiris
+ Fichier : https://wxs-telechargement.ign.fr/1yhlj2ehpqf3q6dt6a2y7b64/telechargement/inspire/CONTOURS-IRIS-2015-01-01$CONTOURS-IRIS_2-1__SHP_LAMB93_FXX_2016-11-10/file/CONTOURS-IRIS_2-1__SHP_LAMB93_FXX_2016-11-10.7z
+ Le SHP dans le r√É¬©pertoire France m√©tropolitaine: CONTOURS-IRIS_2-1__SHP_LAMB93_FXX_2016-11-10\CONTOURS-IRIS_2-1__SHP_LAMB93_FXX_2016-11-10\CONTOURS-IRIS\1_DONNEES_LIVRAISON_2015\CONTOURS-IRIS_2-1_SHP_LAMB93_FE-2015
+---
+Descriptions des projections 
+https://www.nceas.ucsb.edu/~frazier/RSpatialGuides/OverviewCoordinateReferenceSystems.pdf
+
+
+####################
+Les librairies
+```{r}
+library(sp)
+library(rgeos)
+library(rgdal)
+library(maptools)
+setwd("F:/Data Scientist/Iris")
+```
+
+####################
+Infos sur le shapefile iris
+```{r}
+ogrInfo(dsn = "iris",layer="CONTOURS-IRIS")
+```
+
+####################
+Lecture du shapefile et infos
+```{r}
+area <- readOGR(dsn = "iris", layer="CONTOURS-IRIS", stringsAsFactors=FALSE)
+class(area)
+slotNames(area)
+area@proj4string
+```
+
+####################
+Lecture du fichier des stations
+en json car avec le csv, il y des d√©calages de champs sur certaines stations
+```{r}
+library(jsonlite)
+#stations <- read.csv2("Paris2.csv", dec=".", sep=";")
+#stations <- read.fwf("Paris2.csv", widths = c(1000))
+stations <- fromJSON("Paris.json")
+str(stations)
+```
+
+####################
+On va faire un test sur la premiere station du data frame
+```{r}
+stations[1,]
+```
+station 31705
+rue des champeaux √† Bagnolet
+Longitude 2.416171
+Latitude 48.86453
+
+####################
+Alors on teste avec la station 31705
+Le CRS (syst√®me de coordonn√©es) est indiqu√© sur la page de chargement de Jdecauc : WDS84 
+J'ai trouv√© "+init=epsg:4326" pour la chaine CRS correspondante
+```{r}
+pts=SpatialPoints(cbind(c(2.4161),c(48.8645)))
+CRS("+init=epsg:4326")
+pts@proj4string <- CRS("+init=epsg:4326")
+```
+
+Il faut convertir area dans le format WDS84
+Et on v√©rifie l'appartenance
+```{r}
+area4326 <- spTransform( area, CRS("+init=epsg:4326"))
+head(coordinates(area4326))
+coordinates(pts)
+```
+
+```{r}
+over( pts, area4326)
+```
+Youppie !!!
+
+####################
+On g√©n√©ralise √† toutes les stations
+On convertit en objet "spatial data points" avec la projection du datashape
+```{r}
+## Une autre mÈthode
+# xy <- cbind( stations$longitude, stations$latitude)
+# spdf <- SpatialPointsDataFrame(coords = xy, data = stations,
+#                                proj4string = CRS("+proj=lcc +lat_1=44 +lat_2=49 +lat_0=46.5    #                                  +lon_0=3 +x_0=700000 +y_0=6600000
+#                                +ellps=GRS80 +units=m +no_defs"))
+spdf <- data.frame(stations$latitude, stations$longitude, stations$number)
+coordinates(spdf) <- ~ stations.longitude + stations.latitude
+proj4string(spdf) <- CRS("+init=epsg:4326")
+class(spdf)
+slotNames(spdf)
+```
+
+C'est parti pour l'over
+```{r}
+df <- over(spdf, area4326)
+class(df)
+head(df)
+```
+
+Tout est dans "stations2"
+```{r}
+stations2 <- cbind(stations,df)
+```
+
+On fait une carte pour le fun
+```{r}
+# Construction de la carte
+library(leaflet)
+retourne_diam <- function(x) {return (m.getZoom)}
+
+m <- leaflet(padding = 0)
+## Ajout des iris de Paris
+m <- addPolygons(map = m, data = area4326[substr(area$INSEE_COM,1,2)=="75",], opacity = 70, 
+                 color = "#920000", 
+                 weight = 0.25,popup = NULL,
+                 options = list(clickable = FALSE), 
+                 fill = T 
+                 #, 
+                 #fillColor = "#B3C4B3", 
+                 #fillOpacity = 100
+                 )
+## Ajout des stations
+ m <- addCircleMarkers(map = m, 
+                      lng = stations2$longitude, 
+                      lat = stations2$latitude,
+                      radius = 3, 
+                      weight = 0.25,
+                      stroke = T, opacity = 100,
+                      fill = T, fillColor = "#920000",
+                      fillOpacity = 100,
+                      popup = stations2$name,
+                      color = "white")
+## Centrage de la carte lat=48,86 long=2,33
+ m <- fitBounds(map = m, 
+                lng1 = 2.25,
+                lat1 = 48.90,
+                lng2 = 2.42, 
+                lat2 = 48.81)
+## Dimensions de la carte
+m$width <- 474*3
+m$height <- 200*4.5
+# Export de la carte en html
+library(htmlwidgets)
+saveWidget(m, 'e:/map.html', selfcontained = TRUE)
+
+```
+
+
+DonnÈes liÈes ‡ l'iris
+Site de l'Insee : https://www.insee.fr/fr/statistiques?debut=0&idprec=2386631&categorie=1&geo=ICQ-1&idfacette=3
+SÈlection "IRIS" + "DONNEES" : https://www.insee.fr/fr/statistiques/2386631
+ActivitÈs des rÈsidents en 2013
+Population en 2013
+Diplomes formation en 2013
+Logement en 2013
+
